@@ -1,39 +1,201 @@
 <script>
   import { onMount } from 'svelte';
   
+  let activeTab = 'agent1'; // 'agent1', 'agent2', or 'agent3'
   let input = '';
-  let messages = [];
+  let messages = {
+    agent1: [],
+    agent2: [],
+    agent3: []
+  };
   let debugOpen = false;
-  let replierInput = null; // { frameSet, contextCount, agent, reasons }
-  let isLoading = false;
-  let errorMsg = '';
+  let replierInput = {
+    agent1: null,
+    agent2: null,
+    agent3: null
+  }; // { frameSet, contextCount, agent, reasons }
+  let isLoading = {
+    agent1: false,
+    agent2: false,
+    agent3: false
+  };
+  let errorMsg = {
+    agent1: '',
+    agent2: '',
+    agent3: ''
+  };
   
+  $: currentMessages = messages[activeTab];
+  $: currentReplierInput = replierInput[activeTab];
+  $: currentIsLoading = isLoading[activeTab];
+  $: currentErrorMsg = errorMsg[activeTab];
 
-  onMount(() => {});
+  onMount(() => {
+    // Auto-trigger opening message for Agent 2 on page load
+    if (activeTab === 'agent2' && messages[activeTab].length === 0) {
+      getOpeningMessage();
+    }
+    // Auto-trigger opening message for Agent 3 on page load
+    if (activeTab === 'agent3' && messages[activeTab].length === 0) {
+      getAgent3OpeningMessage();
+    }
+  });
+
+  function switchTab(tab) {
+    activeTab = tab;
+    // Clear the current tab's state when switching
+    replierInput[tab] = null;
+    errorMsg[tab] = '';
+    isLoading[tab] = false;
+    
+    // Auto-trigger opening message for Agent 2 if it's empty
+    if (tab === 'agent2' && messages[tab].length === 0) {
+      getOpeningMessage();
+    }
+    // Auto-trigger opening message for Agent 3 if it's empty
+    if (tab === 'agent3' && messages[tab].length === 0) {
+      getAgent3OpeningMessage();
+    }
+  }
+
+  function clearChat() {
+    messages[activeTab] = [];
+    replierInput[activeTab] = null;
+    errorMsg[activeTab] = '';
+    isLoading[activeTab] = false;
+    
+    // Auto-trigger opening message for Agent 2 after clearing
+    if (activeTab === 'agent2') {
+      getOpeningMessage();
+    }
+    // Auto-trigger opening message for Agent 3 after clearing
+    if (activeTab === 'agent3') {
+      getAgent3OpeningMessage();
+    }
+  }
+
+  function getOpeningMessage() {
+    if (activeTab !== 'agent2') return;
+    
+    // Curated list of opening messages with questions
+    const openingMessages = [
+      {
+        message: `You've found your way here. Good. Don't mind the quiet—I prefer it this way. Take a seat. Each day, I'll offer you a question—not for me, but for you. When the week is done, I'll gather what you've written and share what the silence has taught me.`,
+        question: "What small moment today reminded you of who you really are?"
+      },
+      {
+        message: `Welcome. No grand speeches—just gentle questions and the space to answer them. Write honestly. By week's end, I'll send you a letter: a few insights from an old soul who favors calm over chatter.`,
+        question: "If you could whisper one piece of advice to yourself from a year ago, what would it be?"
+      },
+      {
+        message: `You're here for reflection, not performance. Each day I'll give you a question—something simple, but not always easy. At the end of the week, I'll offer my perspective, drawn from quiet observation and a bit of well-worn wisdom.`,
+        question: "What emotion did you feel most strongly today, and where in your body did you feel it?"
+      },
+      {
+        message: `Sit with me awhile. The world can be noisy, but here it's peaceful. I'll ask one question each day; you write what you will. Once the week settles, I'll share a thoughtful letter: plain, honest, and a little bit zen.`,
+        question: "What pattern in your life are you ready to change, and what's the first step?"
+      }
+    ];
+    
+    // Pick a random opening message
+    const randomIndex = Math.floor(Math.random() * openingMessages.length);
+    const selected = openingMessages[randomIndex];
+    
+    const fullMessage = `${selected.message}
+
+Here's your first reflection question to get you started:
+
+**"${selected.question}"**
+
+Take your time with this question. There's no right or wrong way to answer it - just write whatever comes to mind. This is your space to explore your thoughts and feelings.
+
+When you're ready to write your diary entry, just start typing your response to this question.`;
+    
+    messages[activeTab] = [{ role: 'assistant', content: fullMessage }];
+    replierInput[activeTab] = { 
+      frameSet: { frames: { persona: { value: 'journal_intro' } } },
+      contextCount: 0,
+      agent: 'agent2',
+      reasons: 'Generated opening message'
+    };
+  }
+
+  async function getAgent3OpeningMessage() {
+    if (activeTab !== 'agent3') return;
+    
+    console.log('Generating Agent3 opening message...');
+    
+    try {
+      const res = await fetch('/api/chat-agent3', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ history: [] })
+      });
+      
+      console.log('Agent3 API response status:', res.status);
+      
+      if (!res.ok) {
+        console.error('Agent3 API error:', res.status, res.statusText);
+        const errorData = await res.json();
+        console.error('Error data:', errorData);
+        throw new Error(`API error: ${res.status}`);
+      }
+      
+      const data = await res.json();
+      console.log('Agent3 API response data:', data);
+      
+      if (data.assistantMessage) {
+        console.log('Setting Agent3 opening message:', data.assistantMessage);
+        messages[activeTab] = [{ role: 'assistant', content: data.assistantMessage }];
+        replierInput[activeTab] = data.replierInput || { 
+          frameSet: { frames: { persona: { value: 'riddle_realms_intro' } } },
+          contextCount: 0,
+          agent: 'agent3',
+          reasons: 'Generated opening message for Riddle Realms'
+        };
+      } else {
+        console.error('No assistantMessage in response:', data);
+        messages[activeTab] = [{ role: 'assistant', content: 'Welcome to Riddle Realms! Your mystical adventure begins...' }];
+      }
+    } catch (error) {
+      console.error('Error generating opening message:', error);
+      // Fallback to simple message
+      messages[activeTab] = [{ role: 'assistant', content: 'Welcome to Riddle Realms! Your mystical adventure begins...' }];
+    }
+  }
+
+  function getEndpoint() {
+    switch(activeTab) {
+      case 'agent1': return '/api/chat-agent1';
+      case 'agent2': return '/api/chat-agent2';
+      case 'agent3': return '/api/chat-agent3';
+      default: return '/api/chat-agent1';
+    }
+  }
 
   async function send() {
     const content = input.trim();
     if (!content) return;
-    messages = [...messages, { role: 'user', content }];
+    messages[activeTab] = [...messages[activeTab], { role: 'user', content }];
     input = '';
-    isLoading = true;
-    errorMsg = '';
-    const res = await fetch('/api/chat', {
+    isLoading[activeTab] = true;
+    errorMsg[activeTab] = '';
+    const res = await fetch(getEndpoint(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ history: messages })
+      body: JSON.stringify({ history: messages[activeTab] })
     });
     const data = await res.json();
     if (!res.ok || data?.error) {
-      errorMsg = data?.error || 'Request failed';
-      isLoading = false;
+      errorMsg[activeTab] = data?.error || 'Request failed';
+      isLoading[activeTab] = false;
       return;
     }
     if (data.assistantMessage) {
-      messages = [...messages, { role: 'assistant', content: data.assistantMessage }];
-      replierInput = data.replierInput || null;
+      messages[activeTab] = [...messages[activeTab], { role: 'assistant', content: data.assistantMessage }];
+      replierInput[activeTab] = data.replierInput || null;
     }
-    isLoading = false;
+    isLoading[activeTab] = false;
   }
 </script>
 
@@ -122,29 +284,93 @@
     .toolbar { gap: 0.5rem; }
     .container { margin: 1.25rem auto; }
   }
+
+  .tabs { 
+    display: flex; 
+    gap: 0.5rem; 
+    margin-bottom: 1rem; 
+    border-bottom: 2px solid var(--border);
+    padding-bottom: 0;
+  }
+  .tab { 
+    padding: 0.65rem 1.25rem; 
+    background: transparent; 
+    color: var(--muted); 
+    border: none; 
+    border-bottom: 3px solid transparent;
+    cursor: pointer; 
+    font-weight: 550; 
+    transition: all 0.2s ease;
+    margin-bottom: -2px;
+  }
+  .tab:hover { 
+    color: var(--primary); 
+    background: rgba(37, 99, 235, 0.05);
+  }
+  .tab.active { 
+    color: var(--primary); 
+    border-bottom-color: var(--primary);
+  }
+  .tab-description {
+    color: #a5b4fc;
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    background: rgba(37, 99, 235, 0.08);
+    border-radius: 8px;
+    border-left: 3px solid var(--primary);
+  }
 </style>
 
 <div class="container">
   <h1>A3: Multi-agent Interaction </h1>
-  <div class="subtle">Conversational demo</div>
-  <div class="toolbar" style="margin: 0.5rem 0 0.75rem 0;">
-    <button class="secondary" on:click={() => (debugOpen = !debugOpen)}>{debugOpen ? 'Hide' : 'Show'} Debug</button>
+  <div class="subtle">Conversational demo with three distinct agents</div>
+  
+  <div class="tabs">
+    <button class="tab" class:active={activeTab === 'agent1'} on:click={() => switchTab('agent1')}>
+      Agent 1
+    </button>
+    <button class="tab" class:active={activeTab === 'agent2'} on:click={() => switchTab('agent2')}>
+      Agent 2
+    </button>
+    <button class="tab" class:active={activeTab === 'agent3'} on:click={() => switchTab('agent3')}>
+      Agent 3
+    </button>
   </div>
 
-  {#if errorMsg}
+  {#if activeTab === 'agent1'}
+    <div class="tab-description">
+      <strong>Agent 1 - Energetic & Encouraging:</strong> A bubbly, energetic friend who uplifts and inspires. Perfect for celebrations, motivation, and positivity.
+    </div>
+  {:else if activeTab === 'agent2'}
+    <div class="tab-description">
+      <strong>Agent 2 - Weekly Diary Mentor:</strong> A thoughtful journal companion who provides daily reflection questions and generates personalized mentor letters at the end of each week. Perfect for self-discovery, personal growth, and gaining wisdom through daily writing.
+    </div>
+  {:else}
+    <div class="tab-description">
+      <strong>Agent 3 - Creative Innovator:</strong> An imaginative brainstormer excelling at creative problem-solving. Ideal for ideation, creative blocks, and exploring possibilities.
+    </div>
+  {/if}
+
+  <div class="toolbar" style="margin: 0.5rem 0 0.75rem 0;">
+    <button class="secondary" on:click={() => (debugOpen = !debugOpen)}>{debugOpen ? 'Hide' : 'Show'} Debug</button>
+    <button class="secondary" on:click={clearChat}>Clear Chat</button>
+  </div>
+
+  {#if currentErrorMsg}
     <div class="error" role="alert">
-      {errorMsg}
+      {currentErrorMsg}
     </div>
   {/if}
 
   <div class="chat flexcol">
-    {#each messages as m, i}
+    {#each currentMessages as m, i}
       <div class="bubble {m.role}">
         <div class="meta">{m.role}</div>
         <div>{m.content}</div>
       </div>
     {/each}
-    {#if isLoading}
+    {#if currentIsLoading}
       <div class="bubble assistant">
         <div class="meta">assistant</div>
         <div class="typing" aria-label="Assistant is typing">
@@ -170,14 +396,15 @@
 
 {#if debugOpen}
   <div class="debug">
-    <div><strong>Messages:</strong> {messages.length}</div>
-    {#if replierInput}
+    <div><strong>Active Tab:</strong> {activeTab}</div>
+    <div><strong>Messages:</strong> {currentMessages.length}</div>
+    {#if currentReplierInput}
       <div style="margin-top: 0.5rem;">
-        <div><strong>Context Count:</strong> {replierInput.contextCount}</div>
-        <div><strong>Agent:</strong> {replierInput.agent || 'n/a'}</div>
-        <div><strong>Reason:</strong> {replierInput.reasons || 'n/a'}</div>
+        <div><strong>Context Count:</strong> {currentReplierInput.contextCount}</div>
+        <div><strong>Agent:</strong> {currentReplierInput.agent || 'n/a'}</div>
+        <div><strong>Reason:</strong> {currentReplierInput.reasons || 'n/a'}</div>
         <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; margin-top: 0.35rem;">
-          {#each Object.entries(replierInput.frameSet?.frames || {}) as [name, p]}
+          {#each Object.entries(currentReplierInput.frameSet?.frames || {}) as [name, p]}
             <div><strong>{name}</strong>: {p?.value}</div>
           {/each}
         </div>
