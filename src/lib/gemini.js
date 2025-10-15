@@ -1,15 +1,15 @@
-import { env } from '$env/dynamic/private';
 import { GoogleGenAI } from '@google/genai';
 
-export function hasGemini(overrideKey) {
-    return Boolean(overrideKey || env.GEMINI_API_KEY);
+export function hasGemini(apiKey) {
+    return Boolean(apiKey && apiKey.trim().length > 0);
 }
 
-export async function geminiGenerate({ contents, systemPrompt = '', config ={} }) {
-    const key =  env.GEMINI_API_KEY;
-    if (!key) throw new Error('GEMINI_API_KEY not set');
+export async function geminiGenerate({ contents, systemPrompt = '', config = {}, apiKey }) {
+    if (!apiKey || !apiKey.trim()) {
+        throw new Error('Gemini API key is required');
+    }
 
-    const ai = new GoogleGenAI({ apiKey: key });
+    const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
     if (systemPrompt) {
         config.systemInstruction = { role: 'model', parts: [{ text: systemPrompt }] };
     }

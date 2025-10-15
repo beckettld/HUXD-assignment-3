@@ -7,7 +7,7 @@ import { Orchestrator2 } from '$lib/agents/agent2/Orchestrator2.js';
  */
 export async function POST({ request }) {
   const body = await request.json();
-  const { history, action, userId, date, entry } = body || {};
+  const { history, action, userId, date, entry, apiKey } = body || {};
 
   if (!Array.isArray(history)) {
     return json({ error: 'history array is required' }, { status: 400 });
@@ -94,7 +94,7 @@ export async function POST({ request }) {
       parts: [{ text: m.content }] 
     }));
     
-    const { assistantMessage, frameSet, agent, reasons } = await orchestrator.orchestrate(contents);
+    const { assistantMessage, frameSet, agent, reasons } = await orchestrator.orchestrate(contents, apiKey);
     
     return json({ 
       assistantMessage, 

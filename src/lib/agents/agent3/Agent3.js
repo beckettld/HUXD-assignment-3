@@ -100,27 +100,28 @@ export class Agent3 {
     return riddle;
   }
 
-  async respond(contents) {
+  async respond(contents, apiKey) {
     // If no conversation history, generate opening message
     if (!contents || contents.length === 0) {
-      return await this.generateOpeningMessage('default_user');
+      return await this.generateOpeningMessage('default_user', apiKey);
     }
 
     const systemPrompt = `You are the Riddle Realms game master. Create immersive fantasy scenes and manage riddle encounters. Always create exactly 3 sentences describing atmospheric fantasy scenes with NPCs who want to ask riddles. Be vivid and engaging.`;
 
-    const { text } = await geminiGenerate({ contents, systemPrompt });
+    const { text } = await geminiGenerate({ contents, systemPrompt, apiKey });
     return { text };
   }
 
   // Generate opening message for new users
-  async generateOpeningMessage(userId) {
+  async generateOpeningMessage(userId, apiKey) {
     const systemPrompt = `You are the Riddle Realms game master. Create a natural, mystical opening scene for a new player. Generate exactly 3 sentences describing a beautiful, atmospheric fantasy area where the player begins their journey. Include an NPC encounter who wants to ask a riddle. Be vivid and engaging.`;
 
     const openingPrompt = `Create a mystical opening scene for a new player entering Riddle Realms. Generate exactly 3 sentences describing a natural, beautiful fantasy area where they begin their journey. Include an NPC who wants to ask a riddle. Make it atmospheric and inviting.`;
 
     const { text } = await geminiGenerate({ 
       contents: [{ role: 'user', parts: [{ text: openingPrompt }] }], 
-      systemPrompt 
+      systemPrompt,
+      apiKey
     });
 
     return { 

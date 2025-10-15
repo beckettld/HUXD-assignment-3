@@ -10,7 +10,7 @@ export class Agent2 {
     console.log('Agent2 instance created');
   }
   
-  async respond(contents) {
+  async respond(contents, apiKey) {
     const systemPrompt = `You are a wise, experienced mentor who provides thoughtful guidance and perspective.
         Setting: A quiet study or library; calm, reflective atmosphere conducive to deep thinking.
         Participants: Trusted advisor with years of experience; share wisdom through stories and principles; help users see the bigger picture.
@@ -21,7 +21,7 @@ export class Agent2 {
         Norms: Avoid prescriptive advice; guide rather than command; respect the user's autonomy; acknowledge complexity and nuance.
         Genre: Thoughtful dialogue, Socratic questioning, wisdom-sharing, reflective coaching.`;
 
-    const { text } = await geminiGenerate({ contents, systemPrompt });
+    const { text } = await geminiGenerate({ contents, systemPrompt, apiKey });
     return { text };
   }
 
@@ -54,7 +54,7 @@ export class Agent2 {
   }
 
   // Generate weekly mentor letter
-  async generateWeeklyLetter(userId, mentorPersonality = 'wise_elder') {
+  async generateWeeklyLetter(userId, mentorPersonality = 'wise_elder', apiKey) {
     const entries = this.getDiaryEntries(userId);
     
     if (entries.length === 0) {
@@ -66,15 +66,15 @@ export class Agent2 {
     ).join('\n\n');
 
     const mentorPrompts = {
-      wise_elder: `You are a wise elder who has lived through many seasons of life. You write thoughtful, reflective letters that draw from ancient wisdom, personal experience, and deep understanding of human nature. Your letters are warm, grandfatherly, and filled with timeless insights.`,
+      wise_elder: `You are Marcus Aurelius, the wise Roman emperor and Stoic philosopher. You write thoughtful, reflective letters that draw from ancient wisdom, personal experience, and deep understanding of human nature. Your letters are warm, grandfatherly, and filled with timeless insights about virtue, duty, and the human condition.`,
       
-      life_coach: `You are an experienced life coach who specializes in personal development and growth. Your letters are motivational, practical, and action-oriented. You provide concrete strategies, tools, and frameworks for personal improvement while being encouraging and supportive.`,
+      life_coach: `You are Maya Angelou, the celebrated poet and civil rights activist. Your letters are motivational, practical, and action-oriented. You provide concrete strategies, tools, and frameworks for personal improvement while being encouraging and supportive. You draw from your own journey of resilience and growth.`,
       
-      philosopher: `You are a philosophical mentor who approaches life's questions with deep intellectual rigor. Your letters explore the deeper meanings behind experiences, drawing from philosophy, psychology, and the great thinkers throughout history. You help people understand the 'why' behind their experiences.`,
+      philosopher: `You are Carl Jung, the Swiss psychiatrist and psychoanalyst. Your letters explore the deeper meanings behind experiences, drawing from philosophy, psychology, and the great thinkers throughout history. You help people understand the 'why' behind their experiences and guide them toward individuation and self-discovery.`,
       
-      spiritual_guide: `You are a spiritual mentor who helps people find meaning and purpose in their experiences. Your letters are contemplative, drawing from various spiritual traditions, mindfulness practices, and the search for inner peace and understanding.`,
+      spiritual_guide: `You are Thich Nhat Hanh, the Vietnamese Zen master and peace activist. Your letters are contemplative, drawing from Buddhist wisdom, mindfulness practices, and the search for inner peace and understanding. You offer gentle guidance on finding meaning and purpose in daily life.`,
       
-      practical_advisor: `You are a practical advisor who focuses on real-world solutions and actionable advice. Your letters are straightforward, no-nonsense, and filled with practical wisdom about work, relationships, health, and daily living.`
+      practical_advisor: `You are Benjamin Franklin, the American polymath and founding father. Your letters are straightforward, no-nonsense, and filled with practical wisdom about work, relationships, health, and daily living. You focus on real-world solutions and actionable advice for personal improvement.`
     };
 
     const systemPrompt = `${mentorPrompts[mentorPersonality] || mentorPrompts.wise_elder}
@@ -95,7 +95,8 @@ export class Agent2 {
 
     const { text } = await geminiGenerate({ 
       contents: [{ role: 'user', parts: [{ text: 'Generate my weekly mentor letter' }] }], 
-      systemPrompt 
+      systemPrompt,
+      apiKey
     });
     
     return { text };
@@ -117,58 +118,91 @@ export class Agent2 {
   }
 
   // Generate a unique daily question to prompt diary writing
-  generateDailyQuestion(userId) {
+  async generateDailyQuestion(userId, apiKey) {
+    const entries = this.getDiaryEntries(userId);
     const usedQuestions = this.getUsedQuestions(userId);
     
-    // Curated list of thoughtful reflection questions
-    const allQuestions = [
-      "What small moment today reminded you of who you really are?",
-      "If you could whisper one piece of advice to yourself from a year ago, what would it be?",
-      "What emotion did you feel most strongly today, and where in your body did you feel it?",
-      "What pattern in your life are you ready to change, and what's the first step?",
-      "What conversation today made you think differently about something?",
-      "If today had a color, what would it be and why?",
-      "What did you learn about yourself through your interactions today?",
-      "What small act of kindness did you witness or perform today?",
-      "What would you tell your future self about this moment in your life?",
-      "What boundary did you set or wish you had set today?",
-      "What made you feel most alive today, even if just for a moment?",
-      "What old belief about yourself did you question today?",
-      "What did you do today that aligned with your values?",
-      "What fear did you face today, big or small?",
-      "What would you do differently if you could relive today?",
-      "What made you feel grateful today that you usually take for granted?",
-      "What did you discover about your relationships today?",
-      "What creative impulse did you have today, even if you didn't act on it?",
-      "What did you let go of today, even if just mentally?",
-      "What made you feel proud of yourself today?"
-    ];
-    
-    // Filter out recently used questions
-    const usedTexts = usedQuestions.map(q => q.question);
-    const availableQuestions = allQuestions.filter(q => !usedTexts.includes(q));
-    
-    // If all questions have been used, reset the used questions list
-    let questionsToChooseFrom = availableQuestions.length > 0 ? availableQuestions : allQuestions;
-    
-    // If we're resetting, clear the used questions
-    if (availableQuestions.length === 0) {
-      this.usedQuestions.delete(userId);
-      questionsToChooseFrom = allQuestions;
+    // If this is the first question, use a curated starter question
+    if (entries.length === 0) {
+      const starterQuestions = [
+        "What small moment today reminded you of who you really are?",
+        "If you could whisper one piece of advice to yourself from a year ago, what would it be?",
+        "What emotion did you feel most strongly today, and where in your body did you feel it?",
+        "What pattern in your life are you ready to change, and what's the first step?"
+      ];
+      
+      const randomIndex = Math.floor(Math.random() * starterQuestions.length);
+      const selectedQuestion = starterQuestions[randomIndex];
+      
+      this.addUsedQuestion(userId, selectedQuestion);
+      
+      return { 
+        text: selectedQuestion,
+        questionId: Date.now().toString(),
+        category: this.categorizeQuestion(selectedQuestion)
+      };
     }
     
-    // Pick a random question
-    const randomIndex = Math.floor(Math.random() * questionsToChooseFrom.length);
-    const selectedQuestion = questionsToChooseFrom[randomIndex];
+    // For subsequent questions, generate based on previous entries
+    const entriesText = entries.map(entry => entry.content).join('\n');
+    const usedTexts = usedQuestions.map(q => q.question);
     
-    // Store the question as used for this user
-    this.addUsedQuestion(userId, selectedQuestion);
-    
-    return { 
-      text: selectedQuestion,
-      questionId: Date.now().toString(),
-      category: this.categorizeQuestion(selectedQuestion)
-    };
+    const systemPrompt = `You are a thoughtful mentor who creates personalized reflection questions based on someone's diary entries.
+
+Previous diary entries:
+${entriesText}
+
+Recently used questions (avoid repeating these):
+${usedTexts.join(', ')}
+
+Generate a single, thought-provoking question that:
+- Is one sentence long
+- Builds on themes from their previous entries
+- Encourages deeper exploration of patterns or growth
+- Is different from their previous questions
+- Helps them continue their journey of self-discovery
+- Avoids clichés like "How was your day?"
+
+Consider their emotional patterns, recurring themes, and areas for growth. Make it feel like a natural next step in their reflection journey.
+
+Generate one unique question:`;
+
+    try {
+      const { text } = await geminiGenerate({ 
+        contents: [{ role: 'user', parts: [{ text: 'Generate a personalized reflection question' }] }], 
+        systemPrompt,
+        apiKey
+      });
+      
+      const selectedQuestion = text.trim();
+      this.addUsedQuestion(userId, selectedQuestion);
+      
+      return { 
+        text: selectedQuestion,
+        questionId: Date.now().toString(),
+        category: this.categorizeQuestion(selectedQuestion)
+      };
+    } catch (error) {
+      console.error('Error generating dynamic question:', error);
+      
+      // Fallback to curated questions if AI generation fails
+      const fallbackQuestions = [
+        "What conversation today made you think differently about something?",
+        "If today had a color, what would it be and why?",
+        "What did you learn about yourself through your interactions today?",
+        "What small act of kindness did you witness or perform today?",
+        "What would you tell your future self about this moment in your life?"
+      ];
+      
+      const randomQuestion = fallbackQuestions[Math.floor(Math.random() * fallbackQuestions.length)];
+      this.addUsedQuestion(userId, randomQuestion);
+      
+      return { 
+        text: randomQuestion,
+        questionId: Date.now().toString(),
+        category: 'fallback'
+      };
+    }
   }
 
   // Track used questions to avoid repetition
@@ -229,16 +263,16 @@ export class Agent2 {
   }
 
   // Generate opening message for new users
-  generateOpeningMessage(userId) {
+  async generateOpeningMessage(userId, apiKey) {
     // Curated list of opening messages
     const openingMessages = [
-      `You’ve found your way here. Good. Don’t mind the quiet—I prefer it this way. Take a seat. Each day, I’ll offer you a question—not for me, but for you. When the week is done, I’ll gather what you’ve written and share what the silence has taught me.`,
-
-      `Welcome. No grand speeches—just gentle questions and the space to answer them. Write honestly. By week’s end, I’ll send you a letter: a few insights from an old soul who favors calm over chatter.`,
-
-      `You’re here for reflection, not performance. Each day I’ll give you a question—something simple, but not always easy. At the end of the week, I’ll offer my perspective, drawn from quiet observation and a bit of well-worn wisdom.`,
-
-      `Sit with me awhile. The world can be noisy, but here it’s peaceful. I’ll ask one question each day; you write what you will. Once the week settles, I’ll share a thoughtful letter: plain, honest, and a little bit zen.`
+      `You've found your way here. Good. Don't mind the quiet—I prefer it this way. Take a seat. Each day, I'll offer you a question—not for me, but for you. When the week is done, I'll gather what you've written and share what the silence has taught me.`,
+      
+      `Welcome. No grand speeches—just gentle questions and the space to answer them. Write honestly. By week's end, I'll send you a letter: a few insights from an old soul who favors calm over chatter.`,
+      
+      `You're here for reflection, not performance. Each day I'll give you a question—something simple, but not always easy. At the end of the week, I'll offer my perspective, drawn from quiet observation and a bit of well-worn wisdom.`,
+      
+      `Sit with me awhile. The world can be noisy, but here it's peaceful. I'll ask one question each day; you write what you will. Once the week settles, I'll share a thoughtful letter: plain, honest, and a little bit zen.`
     ];
     
     // Pick a random opening message
@@ -246,7 +280,7 @@ export class Agent2 {
     const selectedOpening = openingMessages[randomIndex];
     
     // Generate the first daily question
-    const questionData = this.generateDailyQuestion(userId);
+    const questionData = await this.generateDailyQuestion(userId, apiKey);
     
     const fullMessage = `${selectedOpening}
 

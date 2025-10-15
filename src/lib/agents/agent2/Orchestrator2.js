@@ -10,10 +10,10 @@ export class Orchestrator2 {
     console.log('Orchestrator2 created with singleton Agent2 instance');
   }
 
-  async orchestrate(contents) {
+  async orchestrate(contents, apiKey) {
     // Check if this is a fresh conversation (no messages yet)
     if (contents.length === 0) {
-      return this.handleOpeningMessage(contents);
+      return await this.handleOpeningMessage(contents, apiKey);
     }
 
     // Check if this is a diary entry or mentor letter request
@@ -36,7 +36,7 @@ export class Orchestrator2 {
         !messageText.includes('mentor type') && 
         !messageText.includes('personality')) {
       console.log('Detected as diary entry');
-      return await this.handleDiaryEntry(contents);
+      return await this.handleDiaryEntry(contents, apiKey);
     }
 
     // Handle mentor letter request
@@ -61,7 +61,7 @@ export class Orchestrator2 {
 
     // Default conversation
     console.log('Falling through to default conversation handler');
-    const response = await this.agent.respond(contents);
+    const response = await this.agent.respond(contents, apiKey);
     const text = response?.text || '';
 
     const frameSet = { 
@@ -81,7 +81,7 @@ export class Orchestrator2 {
     };
   }
 
-  async handleDiaryEntry(contents) {
+  async handleDiaryEntry(contents, apiKey) {
     const lastMessage = contents[contents.length - 1];
     const entryText = lastMessage?.parts?.[0]?.text || '';
     
@@ -114,9 +114,19 @@ export class Orchestrator2 {
       console.log('Generating mentor letter...');
       // Generate mentor letter automatically when 3 entries are reached
       const mentorPersonality = await this.selectMentorPersonality(entries);
-      const letterResponse = await this.agent.generateWeeklyLetter(userId, mentorPersonality);
+      const letterResponse = await this.agent.generateWeeklyLetter(userId, mentorPersonality, apiKey);
       
-      response = `You've completed a full week of reflection. Here is your message from your ${mentorPersonality.replace('_', ' ')} mentor:
+      const mentorNames = {
+        wise_elder: 'Marcus Aurelius',
+        life_coach: 'Maya Angelou', 
+        philosopher: 'Carl Jung',
+        spiritual_guide: 'Thich Nhat Hanh',
+        practical_advisor: 'Benjamin Franklin'
+      };
+      
+      const mentorName = mentorNames[mentorPersonality] || 'Marcus Aurelius';
+      
+      response = `You've completed a full week of reflection. Here is your message from ${mentorName}:
 
 ---
 
@@ -128,7 +138,7 @@ Your week of reflection is complete. Feel free to start a new week whenever you'
     } else {
       console.log(`Generating new question. Entries: ${entries.length}, Remaining: ${3 - entries.length}`);
       // Generate a new daily question for the next day
-      const questionData = this.agent.generateDailyQuestion(userId);
+      const questionData = await this.agent.generateDailyQuestion(userId, apiKey);
       
       response = `Noted. Come back tomorrow and respond to this question or write about whatever you feel like when you're ready:
 
@@ -310,11 +320,11 @@ Feel free to explore this question in your diary entry, or write about whatever 
     }
   }
 
-  handleOpeningMessage(contents) {
+  async handleOpeningMessage(contents, apiKey) {
     const userId = 'default_user';
     
     try {
-      const openingData = this.agent.generateOpeningMessage(userId);
+      const openingData = await this.agent.generateOpeningMessage(userId, apiKey);
       
       const frameSet = { 
         frames: { 

@@ -3,6 +3,7 @@
   
   let activeTab = 'agent1'; // 'agent1', 'agent2', or 'agent3'
   let input = '';
+  let apiKey = '';
   let messages = {
     agent1: [],
     agent2: [],
@@ -31,6 +32,10 @@
   $: currentErrorMsg = errorMsg[activeTab];
 
   onMount(() => {
+    // Auto-trigger opening message for Agent 1 on page load
+    if (activeTab === 'agent1' && messages[activeTab].length === 0) {
+      getAgent1OpeningMessage();
+    }
     // Auto-trigger opening message for Agent 2 on page load
     if (activeTab === 'agent2' && messages[activeTab].length === 0) {
       getOpeningMessage();
@@ -48,6 +53,10 @@
     errorMsg[tab] = '';
     isLoading[tab] = false;
     
+    // Auto-trigger opening message for Agent 1 if it's empty
+    if (tab === 'agent1' && messages[tab].length === 0) {
+      getAgent1OpeningMessage();
+    }
     // Auto-trigger opening message for Agent 2 if it's empty
     if (tab === 'agent2' && messages[tab].length === 0) {
       getOpeningMessage();
@@ -64,6 +73,10 @@
     errorMsg[activeTab] = '';
     isLoading[activeTab] = false;
     
+    // Auto-trigger opening message for Agent 1 after clearing
+    if (activeTab === 'agent1') {
+      getAgent1OpeningMessage();
+    }
     // Auto-trigger opening message for Agent 2 after clearing
     if (activeTab === 'agent2') {
       getOpeningMessage();
@@ -129,7 +142,7 @@ When you're ready to write your diary entry, just start typing your response to 
       const res = await fetch('/api/chat-agent3', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ history: [] })
+        body: JSON.stringify({ history: [], apiKey })
       });
       
       console.log('Agent3 API response status:', res.status);
@@ -164,6 +177,21 @@ When you're ready to write your diary entry, just start typing your response to 
     }
   }
 
+  function getAgent1OpeningMessage() {
+    if (activeTab !== 'agent1') return;
+    
+    // Simple hardcoded opening message for Historical Judges
+    const openingMessage = "Say your hot take and our historical judges will put their opinions on it.";
+    
+    messages[activeTab] = [{ role: 'assistant', content: openingMessage }];
+    replierInput[activeTab] = { 
+      frameSet: { frames: { persona: { value: 'historical_judges_intro' } } },
+      contextCount: 0,
+      agent: 'agent1',
+      reasons: 'Generated opening message for Historical Judges Panel'
+    };
+  }
+
   function getEndpoint() {
     switch(activeTab) {
       case 'agent1': return '/api/chat-agent1';
@@ -173,9 +201,9 @@ When you're ready to write your diary entry, just start typing your response to 
     }
   }
 
-  async function send() {
-    const content = input.trim();
-    if (!content) return;
+      async function send() {
+        const content = input.trim();
+        if (!content) return;
     messages[activeTab] = [...messages[activeTab], { role: 'user', content }];
     input = '';
     isLoading[activeTab] = true;
@@ -183,7 +211,7 @@ When you're ready to write your diary entry, just start typing your response to 
     const res = await fetch(getEndpoint(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ history: messages[activeTab] })
+      body: JSON.stringify({ history: messages[activeTab], apiKey })
     });
     const data = await res.json();
     if (!res.ok || data?.error) {
@@ -233,8 +261,7 @@ When you're ready to write your diary entry, just start typing your response to 
   .chat {
     border-radius: 12px;
     padding: 1rem;
-    min-height: 320px;
-    max-height: 800px; /* enable scroll beyond 800px */
+    height: 500px; /* Fixed height */
     overflow-y: auto;
     background: var(--card);
     border: 1px solid var(--border);
@@ -283,6 +310,7 @@ When you're ready to write your diary entry, just start typing your response to 
     .bubble { max-width: 92%; }
     .toolbar { gap: 0.5rem; }
     .container { margin: 1.25rem auto; }
+    .chat { height: 400px; } /* Smaller height on mobile */
   }
 
   .tabs { 
@@ -324,37 +352,59 @@ When you're ready to write your diary entry, just start typing your response to 
 
 <div class="container">
   <h1>A3: Multi-agent Interaction </h1>
-  <div class="subtle">Conversational demo with three distinct agents</div>
+  <div class="subtle">Three unique AI experiences: Historical Judges, Diary Mentor, and Riddle Realms</div>
   
   <div class="tabs">
     <button class="tab" class:active={activeTab === 'agent1'} on:click={() => switchTab('agent1')}>
-      Agent 1
+      🏛️ Historical Judges
     </button>
     <button class="tab" class:active={activeTab === 'agent2'} on:click={() => switchTab('agent2')}>
-      Agent 2
+      📖 Diary Mentor
     </button>
     <button class="tab" class:active={activeTab === 'agent3'} on:click={() => switchTab('agent3')}>
-      Agent 3
+      🎭 Riddle Realms
     </button>
   </div>
 
   {#if activeTab === 'agent1'}
     <div class="tab-description">
-      <strong>Agent 1 - Energetic & Encouraging:</strong> A bubbly, energetic friend who uplifts and inspires. Perfect for celebrations, motivation, and positivity.
+      <strong>🏛️ Historical Judges Panel:</strong> Present your hot takes to a panel of historical figures from different eras! Socrates, Lincoln, Marie Curie, Leonardo da Vinci, and Eleanor Roosevelt will evaluate your controversial opinions and provide wisdom from across the ages.
     </div>
   {:else if activeTab === 'agent2'}
     <div class="tab-description">
-      <strong>Agent 2 - Weekly Diary Mentor:</strong> A thoughtful journal companion who provides daily reflection questions and generates personalized mentor letters at the end of each week. Perfect for self-discovery, personal growth, and gaining wisdom through daily writing.
+      <strong>📖 Weekly Diary Mentor:</strong> A thoughtful journal companion who provides daily reflection questions and generates personalized mentor letters at the end of each week. Perfect for self-discovery, personal growth, and gaining wisdom through daily writing.
     </div>
   {:else}
     <div class="tab-description">
-      <strong>Agent 3 - Creative Innovator:</strong> An imaginative brainstormer excelling at creative problem-solving. Ideal for ideation, creative blocks, and exploring possibilities.
+      <strong>🎭 Riddle Realms:</strong> Enter a mystical fantasy world where you'll encounter atmospheric scenes and solve riddles! Navigate through immersive fantasy environments, meet intriguing NPCs, and test your wit in this creative riddle adventure.
     </div>
   {/if}
 
   <div class="toolbar" style="margin: 0.5rem 0 0.75rem 0;">
-    <button class="secondary" on:click={() => (debugOpen = !debugOpen)}>{debugOpen ? 'Hide' : 'Show'} Debug</button>
-    <button class="secondary" on:click={clearChat}>Clear Chat</button>
+    <div style="display: flex; gap: 1rem; align-items: center; flex: 1;">
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 0.25rem;">
+          <div style="display: flex; gap: 0.5rem;">
+            <input type="password" 
+              placeholder="Enter your Gemini API key..." 
+              bind:value={apiKey}
+              on:keydown={(e) => e.key === 'Enter' && send()}
+              style="flex: 1; padding: 0.5rem; border-radius: 6px; border: 1px solid #ddd;"
+            />
+            <button 
+              on:click={send}
+              disabled={!input.trim() || currentIsLoading}
+              style="padding: 0.5rem 1rem; border-radius: 6px; border: 1px solid #2563eb; background: #2563eb; color: white; cursor: pointer;"
+            >
+              {currentIsLoading ? 'Sending...' : 'Send'}
+            </button>
+          </div>
+          <small style="color: #666; font-size: 0.8rem;">
+            Get your free API key at <a href="https://makersuite.google.com/app/apikey" target="_blank" style="color: #2563eb;">Google AI Studio</a>
+          </small>
+        </div>
+      <button class="secondary" on:click={() => (debugOpen = !debugOpen)}>{debugOpen ? 'Hide' : 'Show'} Debug</button>
+      <button class="secondary" on:click={clearChat}>Clear Chat</button>
+    </div>
   </div>
 
   {#if currentErrorMsg}

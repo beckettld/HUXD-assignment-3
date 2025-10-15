@@ -22,12 +22,12 @@ export class JudgesOrchestrator {
     console.log('Judges Orchestrator created with 5 historical judges');
   }
 
-  async orchestrateJudges(hotTake) {
+  async orchestrateJudges(hotTake, apiKey) {
     console.log(`Judges Orchestrator: Evaluating hot take: "${hotTake}"`);
     
     // Get responses from all judges in parallel
     const judgePromises = this.judges.map(judge => 
-      judge.evaluateHotTake(hotTake).catch(error => {
+      judge.evaluateHotTake(hotTake, apiKey).catch(error => {
         console.error(`Error from ${judge.name}:`, error);
         return { 
           text: `${judge.name} is temporarily unavailable for comment.`, 
@@ -40,6 +40,15 @@ export class JudgesOrchestrator {
     const judgeResponses = await Promise.all(judgePromises);
     
     console.log(`Received responses from ${judgeResponses.length} judges`);
+    
+    // Log each judge's response
+    console.log('\n🏛️ HISTORICAL JUDGES RESPONSES 🏛️');
+    console.log('='.repeat(50));
+    judgeResponses.forEach((response, index) => {
+      console.log(`\n${index + 1}. ${response.judge} (${response.era}):`);
+      console.log(`   "${response.text}"`);
+    });
+    console.log('='.repeat(50));
     
     return {
       hotTake,

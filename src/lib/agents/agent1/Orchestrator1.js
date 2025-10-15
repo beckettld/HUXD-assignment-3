@@ -11,11 +11,11 @@ export class Orchestrator1 {
     console.log('Orchestrator1 created with Historical Judges Panel system');
   }
 
-  async orchestrate(contents) {
+  async orchestrate(contents, apiKey) {
     console.log('Orchestrator1: Processing with Historical Judges Panel');
     
     // Use the Historical Judges Panel system
-    const response = await this.agent.respond(contents);
+    const response = await this.agent.respond(contents, apiKey);
     const text = response?.text || '';
 
     const frameSet = { 

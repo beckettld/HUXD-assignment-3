@@ -8,7 +8,7 @@ export class JudgesSynthesizer {
     this.name = 'judges_synthesizer';
   }
 
-  async synthesizeJudgesResponses(judgesData) {
+  async synthesizeJudgesResponses(judgesData, apiKey) {
     const { hotTake, judgeResponses } = judgesData;
     
     console.log(`Synthesizer: Processing responses from ${judgeResponses.length} judges`);
@@ -18,6 +18,12 @@ export class JudgesSynthesizer {
       `**${response.judge} (${response.era}):**\n${response.text}\n`
     ).join('\n---\n\n');
 
+    console.log('\n🔄 SYNTHESIZING JUDGES RESPONSES 🔄');
+    console.log('='.repeat(50));
+    console.log('Formatted responses for synthesis:');
+    console.log(formattedResponses);
+    console.log('='.repeat(50));
+
     const synthesisPrompt = `You are a master synthesizer who combines the perspectives of historical judges into a final verdict.
 
     The user's hot take: "${hotTake}"
@@ -26,29 +32,23 @@ export class JudgesSynthesizer {
 
     ${formattedResponses}
 
-    Your task: Create a final synthesized verdict that:
-    1. Acknowledges the diverse perspectives from different historical eras and backgrounds
-    2. Identifies common themes and areas of agreement among the judges
-    3. Highlights key points of disagreement or tension
-    4. Provides a balanced, thoughtful final assessment
-    5. Maintains the wisdom and gravitas of the historical figures
-    6. Offers practical insights that the user can act upon
-    7. Concludes with a clear verdict: "The Panel's Verdict"
+    Your task: Create a CONCISE final verdict that:
+    1. Briefly summarizes what each judge said (1-2 sentences per judge)
+    2. Identifies the overall panel sentiment (agree/disagree/mixed)
+    3. Provides a clear, brief conclusion
 
-    Structure your response as:
-    - Opening acknowledgment of the hot take
-    - Summary of key themes from the judges
-    - Areas of agreement and disagreement
-    - The Panel's Verdict (clear conclusion)
-    - Practical wisdom for moving forward
-
-    Be respectful of all perspectives while providing a clear, actionable conclusion.`;
+    Keep it SHORT and DIRECT. No lengthy explanations or structured formatting.`;
 
     const contents = [{ role: 'user', parts: [{ text: synthesisPrompt }] }];
     
     const systemPrompt = `You are an expert synthesizer who combines multiple historical perspectives into coherent, actionable wisdom. You respect the unique viewpoints of each historical figure while creating a unified, practical conclusion.`;
 
-    const { text } = await geminiGenerate({ contents, systemPrompt });
+    const { text } = await geminiGenerate({ contents, systemPrompt, apiKey });
+    
+    console.log('\n✅ FINAL SYNTHESIZED VERDICT ✅');
+    console.log('='.repeat(50));
+    console.log(text);
+    console.log('='.repeat(50));
     
     return {
       synthesizedVerdict: text,

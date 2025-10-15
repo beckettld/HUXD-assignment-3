@@ -7,7 +7,7 @@ import { getAgent3Instance } from '../../../lib/agents/agent3/Agent3.js';
  */
 export async function POST({ request }) {
   const body = await request.json();
-  const { history } = body || {};
+  const { history, apiKey } = body || {};
 
   if (!Array.isArray(history)) {
     return json({ error: 'history array is required' }, { status: 400 });
@@ -25,7 +25,7 @@ export async function POST({ request }) {
       parts: [{ text: m.content }] 
     }));
     
-    const response = await agent.respond(contents);
+    const response = await agent.respond(contents, apiKey);
     
     console.log('Agent3 Riddle Realms API: Response generated');
     console.log('Response:', response);

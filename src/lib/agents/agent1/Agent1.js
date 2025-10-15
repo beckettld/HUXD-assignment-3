@@ -13,10 +13,10 @@ export class Agent1 {
     console.log('Agent1 Historical Judges instance created');
   }
   
-  async respond(contents) {
-    // If no conversation history, generate opening message
+  async respond(contents, apiKey) {
+    // If no conversation history, show simple default message
     if (!contents || contents.length === 0) {
-      return await this.generateOpeningMessage();
+      return { text: "Say your hot take and our historical judges will put their opinions on it." };
     }
 
     // Check if user is providing a hot take
@@ -34,7 +34,7 @@ export class Agent1 {
         !messageText.toLowerCase().includes('introduce')) {
       
       console.log('Detected hot take, starting evaluation process');
-      return await this.evaluateHotTake(messageText);
+      return await this.evaluateHotTake(messageText, apiKey);
     }
     
     // Handle help or information requests
@@ -50,46 +50,30 @@ export class Agent1 {
     return await this.handleGeneralMessage(contents);
   }
 
-  async generateOpeningMessage() {
-    const systemPrompt = `You are the moderator of the Historical Judges Panel, a unique system where users can present their hot takes to be evaluated by a panel of historical figures from different eras.
 
-    Create an engaging opening message that:
-    1. Welcomes the user to the Historical Judges Panel
-    2. Explains that they can share any hot take or controversial opinion
-    3. Mentions that their hot take will be evaluated by historical figures from different eras
-    4. Encourages them to share their thoughts
-    5. Uses an enthusiastic but professional tone
-
-    Keep it concise but inviting.`;
-
-    const { text } = await geminiGenerate({ 
-      contents: [{ role: 'user', parts: [{ text: 'Create an opening message for the Historical Judges Panel' }] }], 
-      systemPrompt 
-    });
-
-    return { text };
-  }
-
-  async evaluateHotTake(hotTake) {
-    console.log(`Starting evaluation process for hot take: "${hotTake}"`);
+  async evaluateHotTake(hotTake, apiKey) {
+    console.log(`\n🏛️ STARTING HISTORICAL JUDGES EVALUATION 🏛️`);
+    console.log(`Hot Take: "${hotTake}"`);
+    console.log('='.repeat(60));
     
     try {
       // Step 1: Get responses from all judges
       console.log('Step 1: Gathering responses from historical judges...');
-      const judgesData = await this.judgesOrchestrator.orchestrateJudges(hotTake);
+      const judgesData = await this.judgesOrchestrator.orchestrateJudges(hotTake, apiKey);
       
       // Step 2: Synthesize the responses
       console.log('Step 2: Synthesizing judge responses...');
-      const synthesisResult = await this.synthesizer.synthesizeJudgesResponses(judgesData);
+      const synthesisResult = await this.synthesizer.synthesizeJudgesResponses(judgesData, apiKey);
       
       // Step 3: Format the final response
       const finalResponse = this.formatFinalResponse(hotTake, synthesisResult, judgesData);
       
-      console.log('Hot take evaluation completed successfully');
+      console.log('\n🎭 EVALUATION COMPLETED SUCCESSFULLY 🎭');
+      console.log('='.repeat(60));
       return { text: finalResponse };
       
     } catch (error) {
-      console.error('Error in hot take evaluation:', error);
+      console.error('❌ Error in hot take evaluation:', error);
       return { 
         text: `I apologize, but there was an issue processing your hot take with our historical judges. Please try again, or feel free to share your thoughts in a different way.` 
       };
@@ -97,29 +81,14 @@ export class Agent1 {
   }
 
   formatFinalResponse(hotTake, synthesisResult, judgesData) {
-    const judgesInfo = this.judgesOrchestrator.getJudgesInfo();
-    const processSummary = this.synthesizer.generateProcessSummary(judgesData);
-    
-    return `🏛️ **HISTORICAL JUDGES PANEL EVALUATION** 🏛️
+    return `🏛️ **HISTORICAL JUDGES PANEL** 🏛️
 
 **Your Hot Take:** "${hotTake}"
 
----
-
-**Our Panel of Historical Judges:**
-${judgesInfo.map(judge => `• **${judge.name}** (${judge.era}) - ${judge.specialty}`).join('\n')}
-
----
-
-**The Panel's Deliberation:**
-
+**Panel Verdict:**
 ${synthesisResult.synthesizedVerdict}
 
----
-
-*Evaluation completed by ${processSummary.successfulResponses} out of ${processSummary.totalJudges} historical judges (${processSummary.successRate} participation rate)*
-
-Thank you for sharing your perspective! The wisdom of history has spoken. 🎭`;
+*The wisdom of history has spoken.* 🎭`;
   }
 
   async handleInformationRequest() {
@@ -150,7 +119,7 @@ ${judgesInfo.map(judge => `• **${judge.name}** (${judge.era}) - ${judge.specia
 
     Be helpful, enthusiastic, and guide users toward sharing their hot takes. If they seem unsure, give them examples of what kinds of hot takes work well with our historical judges.`;
 
-    const { text } = await geminiGenerate({ contents, systemPrompt });
+    const { text } = await geminiGenerate({ contents, systemPrompt, apiKey });
     return { text };
   }
 }
